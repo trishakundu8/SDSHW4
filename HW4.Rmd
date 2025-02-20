@@ -1,0 +1,216 @@
+---
+title: "SDS 315 Homework 4"
+author: "Trisha Kundu"
+date: "2025-02-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=5, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60), message=FALSE, echo=FALSE)
+```
+
+## Name: Trisha Kundu
+
+## UT EID: tk24959
+
+## LINK
+
+```{r}
+library(tidyverse)
+library(mosaic)
+```
+
+# Problem 1 - Iron Bank
+
+Null Hypothesis: There is no difference in the rate of flagged trades of Iron Bank employees vs. other banks
+
+Test Statistic: The number of flagged trades was 70 out of 2021 trades.
+
+Plot of Probability:
+
+```{r}
+#monte carlo simulation
+bank_sim = do(100000)*nflip(n=2021, prob=0.024)
+#plot of probability
+ggplot(bank_sim) + geom_histogram(aes(x=nflip), binwidth = 1) + labs(title="Histogram of 10,000 Outcomes", x="Number of Flagged Trades")
+
+```
+
+P-Value: The p-value is 0.00177.
+
+```{r results=FALSE}
+#to find p-value
+sum(bank_sim >= 70)
+p_value = sum(bank_sim >= 70)/100000
+p_value
+```
+
+Conclusion: Since the p-value of approximately 0.00177 is very small and less than p=0.05, I reject the null hypothesis since there is strong evidence supporting the SEC’s decision to investigate.
+
+\newpage
+# Problem 2 - Health Inspections
+
+l Hypothesis: There is no difference in the rate of health code violations by Gourmet Bites versus other city restaurants.
+
+Test Statistics: There were 8 health code violations out of 50 inspections.
+
+Plot of Probability:
+
+```{r}
+#monte carlo simulation
+health_sim = do(100000)*nflip(n=50, prob=0.03)
+#graphing probability
+ggplot(health_sim) + geom_histogram(aes(x=nflip), binwidth = 1) + labs(x="Number of Health Inspections")
+
+```
+
+P-Value: The p-value is 0.00013.
+
+```{r results=FALSE}
+sum(health_sim >= 8)
+sum_p = sum(health_sim >= 8)/100000
+sum_p
+
+```
+
+Conclusion: Since the p-value of 0.00013 is very small (less than p=0.05), I reject the null hypothesis since there is strong evidence that the Health Department should take action against Gourmet Bites due to the amount of health code violations.
+
+\newpage
+# Problem 3 - Evaluating Jury Selection for Bias
+
+Null Hypothesis: The distribution of jurors selected by the judge is the same as the county's population proportions.
+
+Alternative Hypothesis: The distribution of jurors selected by this judge is significantly different from the county’s population proportions.
+
+```{r results=FALSE}
+
+# Observed counts
+observed_counts = c(Group1 = 85, Group2 = 56, Group3 = 59, Group4 = 27, Group5 = 13)
+# Expected distribution
+expected_distribution = c(Group1 = 0.30, Group2 = 0.25, Group3 = 0.20, Group4 = 0.15, Group5 = 0.10)
+
+# Total number of jurors across all trials
+num_jurors = sum(observed_counts) #240
+# "multinomial sampling" equals sampling from a named set of categories
+simulated_counts = rmultinom(1, num_jurors, expected_distribution)
+
+# compare "actual" with expected counts
+simulated_counts - num_jurors * expected_distribution
+
+# Function with Chi-square formula
+chi_squared_statistic = function(observed, expected) {
+  sum((observed - expected)^2 / expected)
+}
+
+# plugging in chi-squared statistic for the observed data
+chi2 = chi_squared_statistic(simulated_counts, num_jurors*expected_distribution)
+chi2
+
+# Monte Carlo Sim.
+chi2_sim = do(10000)*{
+  simulated_counts = rmultinom(1, num_jurors, expected_distribution)
+  this_chi2 = chi_squared_statistic(simulated_counts, num_jurors*expected_distribution)
+  c(chi2 = this_chi2)
+}
+
+my_chi2 = chi_squared_statistic(observed_counts, num_jurors*expected_distribution)
+my_chi2
+
+
+```
+
+Chi-Squared Value: 12.42639
+
+```{r}
+# Histogram of simulated chi-squared values
+ggplot(chi2_sim) + 
+  geom_histogram(aes(x=chi2))
+```
+
+P-Value:
+
+```{r}
+p_value = mean(chi2_sim$chi2 >= my_chi2)
+print(p_value)
+```
+
+Conclusion: Since the p-value of 0.0147 is less than 0.05, I reject the null hypothesis. This means that the observed jury selection is significantly different from the expected proportions in the county, which could indicate systematic bias in the selection process. However, this could be explained by other factors such as bias from the attorney as well as attorneys/judges unconsciously picking jurors with bias without intention. To investigate further to find out the cause, we could compare with other judges and their juries to see if there is a similar difference across other judges.
+
+\newpage
+# Problem 4 - LLM Watermarking
+
+```{r results=FALSE}
+letters = read.csv("letter_frequencies.csv")
+brown_txt = readLines("brown_sentences.txt")
+
+calculate_chi_squared = function(sentence, freq_table) {
+  
+  # Ensure letter frequencies are normalized and sum to 1
+  freq_table$Probability = freq_table$Probability / sum(freq_table$Probability)
+  
+  # Remove non-letters and convert to uppercase
+  clean_sentence = gsub("[^A-Za-z]", "", sentence)
+  clean_sentence = toupper(clean_sentence)
+  
+  # Count the occurrences of each letter in the sentence
+  observed_counts = table(factor(strsplit(clean_sentence, "")[[1]], levels = freq_table$Letter))
+  
+  # Calculate expected counts
+  total_letters = sum(observed_counts)
+  expected_counts = total_letters * freq_table$Probability
+  
+  # Chi-squared statistic
+  chi_squared_stat = sum((observed_counts - expected_counts)^2 / expected_counts)
+  
+  return(chi_squared_stat)
+}
+
+brown_chi = c()
+for (i in 1:length(brown_txt)){
+  brown_chi[i] = calculate_chi_squared(brown_txt[i], letters)
+}
+
+brown_chi = tibble(chi = brown_chi)
+```
+
+```{r}
+ggplot(brown_chi) + geom_histogram(aes(x=chi), binwidth=1)
+
+```
+
+
+
+
+```{r results=FALSE}
+sentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+sentences_chi = sapply(sentences, calculate_chi_squared, freq_table = letters)
+
+# p-values for each sentences
+sentences_p = sapply(sentences_chi, function(x) mean(brown_chi$chi >= x))
+
+# store them in a tibble
+sentences_p = tibble(p_value = round(sentences_p, 3))
+
+# put into a table with each column
+p_value_table = tibble(sentence = sentences, chi_squared = sentences_chi, p_value = sentences_p$p_value)
+```
+
+```{r}
+print(p_value_table)
+```
+
+The sixth sentence, "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland" is the one produced by an LLM. I know this because the p-value is 0.009, which is significantly lower than the rest of the p-values, and also below 0.05 which makes it statistically significant.
+
+
